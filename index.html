@@ -14,6 +14,7 @@
             align-items: center;
             padding: 20px;
             margin: 0;
+            touch-action: manipulation; /* Verhindert störendes Zoom-Verhalten beim schnellen Tippen auf dem Handy */
         }
 
         h1 {
@@ -29,6 +30,8 @@
             padding: 15px 30px;
             border-radius: 6px;
             border: 1px solid #30363d;
+            width: 80%;
+            max-width: 440px;
         }
 
         .commit-count {
@@ -37,7 +40,6 @@
             color: #3fb950;
         }
 
-        /* Das grüne GitHub-Commit-Quadrat */
         #commit-button {
             width: 120px;
             height: 120px;
@@ -45,8 +47,9 @@
             border: 3px solid #30a14e;
             border-radius: 4px;
             cursor: pointer;
-            transition: transform 0.1s, background-color 0.2s;
+            transition: transform 0.05s, background-color 0.2s;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            -webkit-tap-highlight-color: transparent; /* Entfernt den blauen Klick-Kasten auf Mobilgeräten */
         }
 
         #commit-button:hover {
@@ -54,12 +57,12 @@
         }
 
         #commit-button:active {
-            transform: scale(0.95);
+            transform: scale(0.92);
             background-color: #3fb950;
         }
 
         .shop-container {
-            margin-top: 30px;
+            margin-top: 20px;
             width: 100%;
             max-width: 500px;
         }
@@ -107,6 +110,21 @@
             opacity: 0.4;
             cursor: not-allowed;
         }
+
+        /* Reset-Button für den Spielstand */
+        .reset-btn {
+            margin-top: 40px;
+            background-color: transparent;
+            color: #f85149;
+            border: 1px solid rgba(248, 81, 73, 0.4);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .reset-btn:hover {
+            background-color: rgba(248, 81, 73, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -114,10 +132,8 @@
     <h1>Git Commit Clicker</h1>
     <p style="color: #8b949e; margin-top: 0;">Klicke das Quadrat für maximale Contributions!</p>
 
-    <!-- Der Klick-Button -->
     <button id="commit-button" title="Klicken zum Committen!"></button>
 
-    <!-- Statistiken -->
     <div class="stats-container">
         <div>Commits: <span id="commits" class="commit-count">0</span></div>
         <div style="font-size: 0.9rem; color: #8b949e; margin-top: 5px;">
@@ -125,37 +141,33 @@
         </div>
     </div>
 
-    <!-- Shop für Upgrades -->
     <div class="shop-container">
         <h2>Upgrades & Automation</h2>
         
-        <!-- Upgrade 1: Junior Developer -->
         <div class="shop-item">
             <div class="shop-info">
-                <h3>Junior Developer</h3>
-                <p>Generiert +1 Commit/Sekunde</p>
+                <h3>Junior Developer (<span id="count-junior">0</span>)</h3>
+                <p>Generiert +1 Commit/Sek</p>
             </div>
             <button class="buy-btn" id="buy-junior" onclick="buyUpgrade('junior')">
                 Kaufen (<span id="cost-junior">15</span> C)
             </button>
         </div>
 
-        <!-- Upgrade 2: GitHub Copilot -->
         <div class="shop-item">
             <div class="shop-info">
-                <h3>AI Copilot</h3>
-                <p>Generiert +8 Commits/Sekunde</p>
+                <h3>AI Copilot (<span id="count-copilot">0</span>)</h3>
+                <p>Generiert +8 Commits/Sek</p>
             </div>
             <button class="buy-btn" id="buy-copilot" onclick="buyUpgrade('copilot')">
                 Kaufen (<span id="cost-copilot">100</span> C)
             </button>
         </div>
 
-        <!-- Upgrade 3: Senior Architect -->
         <div class="shop-item">
             <div class="shop-info">
-                <h3>Senior Architect</h3>
-                <p>Generiert +50 Commits/Sekunde</p>
+                <h3>Senior Architect (<span id="count-senior">0</span>)</h3>
+                <p>Generiert +50 Commits/Sek</p>
             </div>
             <button class="buy-btn" id="buy-senior" onclick="buyUpgrade('senior')">
                 Kaufen (<span id="cost-senior">1100</span> C)
@@ -163,9 +175,11 @@
         </div>
     </div>
 
+    <button class="reset-btn" onclick="resetGame()">Spielstand zurücksetzen</button>
+
     <script>
-        // Spielstand-Variablen
-        let gameData = {
+        // Standard-Spielstand
+        const defaultData = {
             commits: 0,
             cps: 0,
             upgrades: {
@@ -175,35 +189,65 @@
             }
         };
 
-        // DOM Elemente abfangen
-        const commitBtn = document.getElementById('commit-button');
-        const commitsDisplay = document.getElementById('commits');
-        const cpsDisplay = document.getElementById('cps');
+        let gameData = {};
 
-        // Manueller Klick
-        commitBtn.addEventListener('click', () => {
-            gameData.commits += 1;
-            updateDisplay();
-        });
+        // LÄDT DEN SPIELSTAND AUS DEM SPEICHER
+        function loadGame() {
+            const savedData = localStorage.getItem('gitClickerSave');
+            if (savedData) {
+                try {
+                    gameData = JSON.parse(savedData);
+                    // Falls Updates am Spiel gemacht wurden, fülle fehlende Felder auf
+                    for (let key in defaultData.upgrades) {
+                        if (!gameData.upgrades[key]) {
+                            gameData.upgrades[key] = { ...defaultData.upgrades[key] };
+                        }
+                    }
+                } catch(e) {
+                    gameData = JSON.parse(JSON.stringify(defaultData));
+                }
+            } else {
+                gameData = JSON.parse(JSON.stringify(defaultData));
+            }
+            recalculateCPS();
+        }
 
-        // Upgrade kaufen
-        function buyUpgrade(type) {
-            let upgrade = gameData.upgrades[type];
-            
-            if (gameData.commits >= upgrade.cost) {
-                gameData.commits -= upgrade.cost;
-                upgrade.count++;
-                
-                // Erhöhe die Kosten für das nächste Mal (Exponentiell)
-                upgrade.cost = Math.ceil(upgrade.cost * 1.15);
-                
-                // Aktualisiere Gesamt-CPS
+        // SPEICHERT DEN SPIELSTAND
+        function saveGame() {
+            localStorage.setItem('gitClickerSave', JSON.stringify(gameData));
+        }
+
+        // ZURÜCKSETZEN
+        function resetGame() {
+            if (confirm("Möchtest du deinen Spielstand wirklich komplett löschen?")) {
+                localStorage.removeItem('gitClickerSave');
+                gameData = JSON.parse(JSON.stringify(defaultData));
                 recalculateCPS();
                 updateDisplay();
             }
         }
 
-        // Berechne die Commits pro Sekunde neu
+        const commitBtn = document.getElementById('commit-button');
+        const commitsDisplay = document.getElementById('commits');
+        const cpsDisplay = document.getElementById('cps');
+
+        commitBtn.addEventListener('click', () => {
+            gameData.commits += 1;
+            updateDisplay();
+        });
+
+        function buyUpgrade(type) {
+            let upgrade = gameData.upgrades[type];
+            if (gameData.commits >= upgrade.cost) {
+                gameData.commits -= upgrade.cost;
+                upgrade.count++;
+                upgrade.cost = Math.ceil(upgrade.cost * 1.15);
+                recalculateCPS();
+                updateDisplay();
+                saveGame(); // Direkt nach dem Kauf speichern
+            }
+        }
+
         function recalculateCPS() {
             let totalCPS = 0;
             for (let key in gameData.upgrades) {
@@ -213,18 +257,18 @@
             gameData.cps = totalCPS;
         }
 
-        // Benutzeroberfläche aktualisieren
         function updateDisplay() {
             commitsDisplay.innerText = Math.floor(gameData.commits);
             cpsDisplay.innerText = gameData.cps;
 
-            // Buttons aktivieren/deaktivieren basierend auf Kontostand
             for (let key in gameData.upgrades) {
                 let up = gameData.upgrades[key];
                 const btn = document.getElementById(`buy-${key}`);
                 const costSpan = document.getElementById(`cost-${key}`);
+                const countSpan = document.getElementById(`count-${key}`);
                 
                 costSpan.innerText = up.cost;
+                countSpan.innerText = up.count;
                 
                 if (gameData.commits >= up.cost) {
                     btn.disabled = false;
@@ -234,11 +278,15 @@
             }
         }
 
-        // Der Game-Loop (Läuft 30 Mal pro Sekunde für flüssige Updates)
+        // Spiel beim Start direkt laden
+        loadGame();
+        updateDisplay();
+
+        // Game-Loop (30 FPS)
         let lastUpdate = Date.now();
         setInterval(() => {
             let now = Date.now();
-            let delta = (now - lastUpdate) / 1000; // Sekunden seit dem letzten Frame
+            let delta = (now - lastUpdate) / 1000;
             lastUpdate = now;
 
             if (gameData.cps > 0) {
@@ -247,8 +295,12 @@
             }
         }, 33);
 
-        // Initialer Aufruf zum Start
-        updateDisplay();
+        // Automatisches Speichern alle 5 Sekunden
+        setInterval(saveGame, 5000);
+
+        // Speichern, wenn der Tab geschlossen oder die Seite verlassen wird
+        window.addEventListener('beforeunload', saveGame);
     </script>
 </body>
 </html>
+
