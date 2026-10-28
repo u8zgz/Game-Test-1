@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Commit Idle Clicker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            color: #58a6ff;
+            margin-bottom: 5px;
+        }
+
+        .stats-container {
+            font-size: 1.2rem;
+            margin: 20px 0;
+            text-align: center;
+            background-color: #161b22;
+            padding: 15px 30px;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+        }
+
+        .commit-count {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #3fb950;
+        }
+
+        /* Das grüne GitHub-Commit-Quadrat */
+        #commit-button {
+            width: 120px;
+            height: 120px;
+            background-color: #216e39;
+            border: 3px solid #30a14e;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #commit-button:hover {
+            background-color: #30a14e;
+        }
+
+        #commit-button:active {
+            transform: scale(0.95);
+            background-color: #3fb950;
+        }
+
+        .shop-container {
+            margin-top: 30px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #161b22;
+            padding: 12px 20px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+        }
+
+        .shop-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.1rem;
+            color: #f0f6fc;
+        }
+
+        .shop-info p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #8b949e;
+        }
+
+        .buy-btn {
+            background-color: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .buy-btn:hover:not(:disabled) {
+            background-color: #30363d;
+            border-color: #8b949e;
+        }
+
+        .buy-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Git Commit Clicker</h1>
+    <p style="color: #8b949e; margin-top: 0;">Klicke das Quadrat für maximale Contributions!</p>
+
+    <!-- Der Klick-Button -->
+    <button id="commit-button" title="Klicken zum Committen!"></button>
+
+    <!-- Statistiken -->
+    <div class="stats-container">
+        <div>Commits: <span id="commits" class="commit-count">0</span></div>
+        <div style="font-size: 0.9rem; color: #8b949e; margin-top: 5px;">
+            Produktion: <span id="cps">0</span> Commits/Sekunde
+        </div>
+    </div>
+
+    <!-- Shop für Upgrades -->
+    <div class="shop-container">
+        <h2>Upgrades & Automation</h2>
+        
+        <!-- Upgrade 1: Junior Developer -->
+        <div class="shop-item">
+            <div class="shop-info">
+                <h3>Junior Developer</h3>
+                <p>Generiert +1 Commit/Sekunde</p>
+            </div>
+            <button class="buy-btn" id="buy-junior" onclick="buyUpgrade('junior')">
+                Kaufen (<span id="cost-junior">15</span> C)
+            </button>
+        </div>
+
+        <!-- Upgrade 2: GitHub Copilot -->
+        <div class="shop-item">
+            <div class="shop-info">
+                <h3>AI Copilot</h3>
+                <p>Generiert +8 Commits/Sekunde</p>
+            </div>
+            <button class="buy-btn" id="buy-copilot" onclick="buyUpgrade('copilot')">
+                Kaufen (<span id="cost-copilot">100</span> C)
+            </button>
+        </div>
+
+        <!-- Upgrade 3: Senior Architect -->
+        <div class="shop-item">
+            <div class="shop-info">
+                <h3>Senior Architect</h3>
+                <p>Generiert +50 Commits/Sekunde</p>
+            </div>
+            <button class="buy-btn" id="buy-senior" onclick="buyUpgrade('senior')">
+                Kaufen (<span id="cost-senior">1100</span> C)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Spielstand-Variablen
+        let gameData = {
+            commits: 0,
+            cps: 0,
+            upgrades: {
+                junior: { count: 0, cost: 15, cpsGain: 1 },
+                copilot: { count: 0, cost: 100, cpsGain: 8 },
+                senior: { count: 0, cost: 1100, cpsGain: 50 }
+            }
+        };
+
+        // DOM Elemente abfangen
+        const commitBtn = document.getElementById('commit-button');
+        const commitsDisplay = document.getElementById('commits');
+        const cpsDisplay = document.getElementById('cps');
+
+        // Manueller Klick
+        commitBtn.addEventListener('click', () => {
+            gameData.commits += 1;
+            updateDisplay();
+        });
+
+        // Upgrade kaufen
+        function buyUpgrade(type) {
+            let upgrade = gameData.upgrades[type];
+            
+            if (gameData.commits >= upgrade.cost) {
+                gameData.commits -= upgrade.cost;
+                upgrade.count++;
+                
+                // Erhöhe die Kosten für das nächste Mal (Exponentiell)
+                upgrade.cost = Math.ceil(upgrade.cost * 1.15);
+                
+                // Aktualisiere Gesamt-CPS
+                recalculateCPS();
+                updateDisplay();
+            }
+        }
+
+        // Berechne die Commits pro Sekunde neu
+        function recalculateCPS() {
+            let totalCPS = 0;
+            for (let key in gameData.upgrades) {
+                let up = gameData.upgrades[key];
+                totalCPS += up.count * up.cpsGain;
+            }
+            gameData.cps = totalCPS;
+        }
+
+        // Benutzeroberfläche aktualisieren
+        function updateDisplay() {
+            commitsDisplay.innerText = Math.floor(gameData.commits);
+            cpsDisplay.innerText = gameData.cps;
+
+            // Buttons aktivieren/deaktivieren basierend auf Kontostand
+            for (let key in gameData.upgrades) {
+                let up = gameData.upgrades[key];
+                const btn = document.getElementById(`buy-${key}`);
+                const costSpan = document.getElementById(`cost-${key}`);
+                
+                costSpan.innerText = up.cost;
+                
+                if (gameData.commits >= up.cost) {
+                    btn.disabled = false;
+                } else {
+                    btn.disabled = true;
+                }
+            }
+        }
+
+        // Der Game-Loop (Läuft 30 Mal pro Sekunde für flüssige Updates)
+        let lastUpdate = Date.now();
+        setInterval(() => {
+            let now = Date.now();
+            let delta = (now - lastUpdate) / 1000; // Sekunden seit dem letzten Frame
+            lastUpdate = now;
+
+            if (gameData.cps > 0) {
+                gameData.commits += gameData.cps * delta;
+                updateDisplay();
+            }
+        }, 33);
+
+        // Initialer Aufruf zum Start
+        updateDisplay();
+    </script>
+</body>
+</html>
